@@ -1,0 +1,49 @@
+const AWS = require('aws-sdk');
+
+// Constants
+const BUCKET_NAME = 'mox-s3-app-console-onboarding-images';
+const REGION = 'us-east-1';
+
+// Configure AWS
+AWS.config.update({ region: REGION });
+const s3 = new AWS.S3();
+
+exports.handler = async (event) => {
+    const { fileB64, fileName, fileFormat } = event.data;
+
+    try {
+        const fileURL = await saveS3images(fileName, fileB64, fileFormat);
+
+        return {
+            statusCode: 200,
+            message: 'File saved',
+            data: fileURL
+        };
+    } catch (error) {
+        return {
+            statusCode: 500,
+            message: error.message
+        };
+    }
+};
+
+async function saveS3images(fileName, fileB64, fileFormat) {
+    const fileKey = `${fileName}.${fileFormat}`;
+    const fileBuffer = Buffer.from(fileB64, 'base64');
+
+    try {
+        await s3.putObject({
+            Bucket: BUCKET_NAME,
+            Key: fileKey,
+            Body: fileBuffer
+        }).promise();
+
+        return constructS3URL(BUCKET_NAME, fileKey);
+    } catch (error) {
+        throw new Error(`Error in s3: ${error.message}`);
+    }
+}
+
+function constructS3URL(bucket, fileKey) {
+    return `https://${bucket}.s3.${REGION}.amazonaws.com/${fileKey}`;
+}
